@@ -32,11 +32,17 @@ pip install -r requirements.txt
 
 ## Configuração
 
-Copie `.env.example` para `.env` e ajuste o necessário.
+`.env.example` é a base para desenvolvimento local.
+
+`.env.production.example` é a base para produção.
+
+Copie um deles para `.env` e ajuste o necessário.
 
 ```bash
 cp .env.example .env
 ```
+
+O arquivo real `.env` não deve ser commitado.
 
 Variáveis principais:
 
@@ -50,6 +56,8 @@ Variáveis principais:
 - `GOOGLE_TTS_ENABLED`: habilita o provider Google.
 - `GOOGLE_APPLICATION_CREDENTIALS`: caminho para credenciais do Google.
 - `GOOGLE_TTS_VOICE`: voz padrão do Google.
+
+Em produção, `OPENAI_API_KEY` e a credencial do Google devem vir de secret ou arquivo seguro.
 
 ## Histórico local
 
@@ -136,6 +144,37 @@ Aviso:
 
 - nunca commite `.env`;
 - nunca commite o JSON de credencial do Google.
+
+## Operação mínima
+
+```bash
+docker compose up -d --build
+docker compose ps
+docker compose logs -f
+curl http://127.0.0.1:8090/health
+docker inspect --format='{{json .State.Health}}' tts-api-switcher
+```
+
+O endpoint `/health` pode ser usado por Docker, proxy reverso ou monitoramento.
+
+## Backup simples
+
+Para backup mínimo, preserve:
+
+- `app/data/tts_history.sqlite3`
+- `app/generated/`
+
+Exemplo:
+
+```bash
+tar -czf tts-api-switcher-backup-$(date +%Y%m%d%H%M%S).tar.gz app/data app/generated
+```
+
+## Restore simples
+
+1. Pare o container.
+2. Restaure `app/data` e `app/generated`.
+3. Suba o container novamente.
 
 ## Teste com provider mock
 

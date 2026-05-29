@@ -25,6 +25,8 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 GENERATED_DIR = settings.generated_dir
 GENERATED_DIR.mkdir(parents=True, exist_ok=True)
+DATA_DIR = BASE_DIR / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class GenerateAudioRequest(BaseModel):
@@ -65,6 +67,31 @@ def build_unique_filename(prefix: str, extension: str = ".wav") -> str:
     return sanitize_filename(filename)
 
 
+def check_directory_writable(directory: Path) -> bool:
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        probe = directory / f".healthcheck-{uuid.uuid4().hex}"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink(missing_ok=True)
+        return True
+    except Exception:
+        return False
+
+
+def check_sqlite_accessible() -> bool:
+    try:
+        import sqlite3
+
+        db_path = DATA_DIR / "tts_history.sqlite3"
+        if not db_path.exists():
+            return False
+        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=2) as conn:
+            conn.execute("SELECT 1")
+        return True
+    except Exception:
+        return False
+
+
 @app.on_event("startup")
 def startup() -> None:
     init_db()
@@ -73,6 +100,25 @@ def startup() -> None:
 @app.get("/", response_class=HTMLResponse)
 def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/health")
+def health() -> JSONResponse:
+    generated_ok = check_directory_writable(GENERATED_DIR)
+    data_ok = check_directory_writable(DATA_DIR)
+    db_ok = check_sqlite_accessible()
+
+    response = {
+        "status": "ok" if generated_ok and data_ok and db_ok else "degraded",
+        "app": "tts-api-switcher",
+        "generated_dir": "ok" if generated_ok else "degraded",
+        "data_dir": "ok" if data_ok else "degraded",
+        "history_db": "ok" if db_ok else "degraded",
+    }
+    status_code = 200 if response["status"] == "ok" else 503
+    if status_code != 200:
+        response["message"] = "Um ou mais componentes essenciais não estão prontos."
+    return JSONResponse(response, status_code=status_code)
 
 
 @app.get("/api/providers")
