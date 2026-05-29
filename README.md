@@ -121,10 +121,49 @@ curl -X POST http://127.0.0.1:8090/api/generate-audio \
 
 Para ativar o provider Google:
 
-- defina `GOOGLE_TTS_ENABLED=true`;
-- configure `GOOGLE_APPLICATION_CREDENTIALS`;
-- defina `GOOGLE_TTS_VOICE` se quiser trocar a voz;
-- instale a biblioteca do Google TTS no ambiente alvo.
+1. Instale as dependências:
+
+```bash
+pip install -r requirements.txt
+```
+
+2. Crie uma service account no Google Cloud com acesso ao Text-to-Speech.
+
+3. Baixe o JSON de credencial para um caminho local fora do Git, por exemplo:
+
+```text
+/srv/secrets/google-tts-service-account.json
+```
+
+4. Configure o `.env`:
+
+```env
+GOOGLE_TTS_ENABLED=true
+GOOGLE_APPLICATION_CREDENTIALS=/srv/secrets/google-tts-service-account.json
+GOOGLE_TTS_LANGUAGE_CODE=pt-BR
+GOOGLE_TTS_VOICE=pt-BR-Neural2-B
+GOOGLE_TTS_AUDIO_ENCODING=MP3
+```
+
+5. Rode a aplicação:
+
+```bash
+uvicorn app.main:app --host 127.0.0.1 --port 8090
+```
+
+Avisos:
+
+- nunca commite o JSON de credencial;
+- o caminho do JSON deve ficar só no `.env` local;
+- a aplicação não expõe credenciais em nenhum endpoint.
+
+Teste com Google:
+
+```bash
+curl -X POST http://127.0.0.1:8090/api/generate-audio \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Olá, este é um teste real usando Google Text-to-Speech.","provider":"google","language":"pt-BR","voice":"pt-BR-Neural2-B","speed":1.0}'
+```
 
 ## Arquitetura dos providers
 

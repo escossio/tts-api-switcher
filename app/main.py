@@ -47,6 +47,8 @@ PROVIDERS = {
         enabled=settings.google_tts_enabled,
         credentials_path=settings.google_application_credentials,
         voice=settings.google_tts_voice,
+        language_code=settings.google_tts_language_code,
+        audio_encoding=settings.google_tts_audio_encoding,
     ),
 }
 

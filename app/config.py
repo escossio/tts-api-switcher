@@ -21,6 +21,8 @@ class Settings(BaseModel):
     google_tts_enabled: bool = False
     google_application_credentials: str = ""
     google_tts_voice: str = "pt-BR-Neural2-B"
+    google_tts_language_code: str = "pt-BR"
+    google_tts_audio_encoding: str = "MP3"
 
 
 @lru_cache(maxsize=1)
@@ -38,6 +40,8 @@ def get_settings() -> Settings:
         google_tts_enabled=os.getenv("GOOGLE_TTS_ENABLED", "false").lower() == "true",
         google_application_credentials=os.getenv("GOOGLE_APPLICATION_CREDENTIALS", ""),
         google_tts_voice=os.getenv("GOOGLE_TTS_VOICE", "pt-BR-Neural2-B"),
+        google_tts_language_code=os.getenv("GOOGLE_TTS_LANGUAGE_CODE", "pt-BR"),
+        google_tts_audio_encoding=os.getenv("GOOGLE_TTS_AUDIO_ENCODING", "MP3"),
     )
 
 
