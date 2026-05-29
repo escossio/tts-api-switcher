@@ -16,6 +16,7 @@ class Settings(BaseModel):
     openai_api_key: str = ""
     openai_tts_model: str = "gpt-4o-mini-tts"
     openai_tts_voice: str = "alloy"
+    openai_tts_format: str = "mp3"
 
     google_tts_enabled: bool = False
     google_application_credentials: str = ""
@@ -33,6 +34,7 @@ def get_settings() -> Settings:
         openai_api_key=os.getenv("OPENAI_API_KEY", ""),
         openai_tts_model=os.getenv("OPENAI_TTS_MODEL", "gpt-4o-mini-tts"),
         openai_tts_voice=os.getenv("OPENAI_TTS_VOICE", "alloy"),
+        openai_tts_format=os.getenv("OPENAI_TTS_FORMAT", "mp3"),
         google_tts_enabled=os.getenv("GOOGLE_TTS_ENABLED", "false").lower() == "true",
         google_application_credentials=os.getenv("GOOGLE_APPLICATION_CREDENTIALS", ""),
         google_tts_voice=os.getenv("GOOGLE_TTS_VOICE", "pt-BR-Neural2-B"),
@@ -40,4 +42,3 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
-

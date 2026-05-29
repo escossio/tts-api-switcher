@@ -8,13 +8,57 @@ const statusEl = document.getElementById("status");
 const resultEl = document.getElementById("result");
 const playerEl = document.getElementById("player");
 const downloadEl = document.getElementById("download");
+const providerStatusEl = document.getElementById("provider-status");
+
+const providerState = {};
+
+function renderProviderStatus(providers) {
+  providerStatusEl.innerHTML = providers
+    .map((provider) => {
+      providerState[provider.id] = provider;
+      const className = provider.enabled ? "pill enabled" : "pill disabled";
+      const label = provider.enabled ? "habilitado" : "desabilitado";
+      return `<span class="${className}">${provider.name}: ${label}</span>`;
+    })
+    .join(" ");
+
+  [...providerEl.options].forEach((option) => {
+    const provider = providerState[option.value];
+    if (provider) {
+      option.disabled = !provider.enabled;
+    }
+  });
+
+  if (providerState[providerEl.value] && !providerState[providerEl.value].enabled) {
+    const firstEnabled = providers.find((provider) => provider.enabled);
+    if (firstEnabled) {
+      providerEl.value = firstEnabled.id;
+    }
+  }
+}
 
 function setStatus(message, type = "") {
   statusEl.textContent = message;
   statusEl.className = `status ${type}`.trim();
 }
 
+async function loadProviders() {
+  try {
+    const response = await fetch("/api/providers");
+    const data = await response.json();
+    renderProviderStatus(data.providers || []);
+  } catch (error) {
+    setStatus("Falha ao carregar provedores.", "error");
+  }
+}
+
 generateBtn.addEventListener("click", async () => {
+  const selectedProvider = providerState[providerEl.value];
+  if (selectedProvider && !selectedProvider.enabled) {
+    setStatus("Provider selecionado está desabilitado.", "error");
+    return;
+  }
+
   const payload = {
     text: textEl.value.trim(),
     provider: providerEl.value,
@@ -42,7 +86,7 @@ generateBtn.addEventListener("click", async () => {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data?.detail?.error || data?.error || "Falha ao gerar áudio.");
+      throw new Error(data?.detail || data?.error || "Falha ao gerar áudio.");
     }
 
     const audioUrl = data.audio_url;
@@ -58,3 +102,4 @@ generateBtn.addEventListener("click", async () => {
   }
 });
 
+loadProviders();

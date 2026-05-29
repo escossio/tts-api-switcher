@@ -44,6 +44,7 @@ Variáveis principais:
 - `OPENAI_API_KEY`: chave da OpenAI, quando for usar o provider.
 - `OPENAI_TTS_MODEL`: modelo de TTS da OpenAI.
 - `OPENAI_TTS_VOICE`: voz padrão da OpenAI.
+- `OPENAI_TTS_FORMAT`: formato de saída da OpenAI, padrão `mp3`.
 - `GOOGLE_TTS_ENABLED`: habilita o provider Google.
 - `GOOGLE_APPLICATION_CREDENTIALS`: caminho para credenciais do Google.
 - `GOOGLE_TTS_VOICE`: voz padrão do Google.
@@ -83,7 +84,16 @@ Para ativar o provider OpenAI:
 - defina `OPENAI_API_KEY`;
 - ajuste `OPENAI_TTS_MODEL` se quiser trocar o modelo;
 - ajuste `OPENAI_TTS_VOICE` se quiser trocar a voz;
+- ajuste `OPENAI_TTS_FORMAT=mp3` se quiser manter a saída em MP3;
 - instale a dependência do SDK da OpenAI se for necessário no ambiente alvo.
+
+Teste com OpenAI:
+
+```bash
+curl -X POST http://127.0.0.1:8090/api/generate-audio \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Olá, este é um teste real de geração de voz usando OpenAI.","provider":"openai","language":"pt-BR","voice":"alloy","speed":1.0}'
+```
 
 ## Futuro Google
 
@@ -99,7 +109,7 @@ Para ativar o provider Google:
 Os providers seguem uma interface comum em `app/providers/base.py`.
 
 - `mock`: gera WAV local sem dependências externas.
-- `openai`: preparado para integração isolada com a API da OpenAI.
+- `openai`: usa `client.audio.speech.create()` e salva MP3 em `app/generated/`.
 - `google`: preparado para integração isolada com Google Cloud Text-to-Speech.
 
 Isso mantém o backend simples e permite adicionar novos providers sem mexer na interface.
@@ -113,4 +123,3 @@ Isso mantém o backend simples e permite adicionar novos providers sem mexer na 
 5. Suporte a MP3 real.
 6. Docker.
 7. Deploy.
-

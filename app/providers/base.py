@@ -11,6 +11,7 @@ class TTSResult:
 class TTSProvider:
     id: str = ""
     name: str = ""
+    default_extension: str = ".wav"
 
     def generate(
         self,

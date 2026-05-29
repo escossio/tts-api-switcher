@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -38,6 +38,7 @@ PROVIDERS = {
         api_key=settings.openai_api_key,
         model=settings.openai_tts_model,
         voice=settings.openai_tts_voice,
+        audio_format=settings.openai_tts_format,
     ),
     "google": GoogleProvider(
         enabled=settings.google_tts_enabled,
@@ -75,12 +76,12 @@ def list_providers() -> JSONResponse:
         {
             "id": "openai",
             "name": "OpenAI TTS",
-            "enabled": bool(settings.openai_api_key),
+            "enabled": PROVIDERS["openai"].is_enabled(),
         },
         {
             "id": "google",
             "name": "Google Text-to-Speech",
-            "enabled": bool(settings.google_tts_enabled and settings.google_application_credentials),
+            "enabled": PROVIDERS["google"].is_enabled(),
         },
     ]
     return JSONResponse({"providers": providers})
@@ -90,11 +91,25 @@ def list_providers() -> JSONResponse:
 def generate_audio(payload: GenerateAudioRequest) -> JSONResponse:
     provider = PROVIDERS.get(payload.provider)
     if provider is None:
-        raise HTTPException(status_code=400, detail={"error": "Provider inválido."})
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error", "provider": payload.provider, "detail": "Provider inválido."},
+        )
+
+    if not provider.is_enabled():
+        detail = "Provider desativado ou não configurado."
+        if payload.provider == "openai":
+            detail = "OPENAI_API_KEY não configurada no .env."
+        elif payload.provider == "google":
+            detail = "Google TTS desativado ou sem credenciais."
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error", "provider": payload.provider, "detail": detail},
+        )
 
     try:
         safe_prefix = sanitize_filename(payload.provider)
-        unique_filename = build_unique_filename(safe_prefix)
+        unique_filename = build_unique_filename(safe_prefix, extension=provider.default_extension)
         result = provider.generate(
             text=payload.text,
             language=payload.language,
@@ -113,9 +128,15 @@ def generate_audio(payload: GenerateAudioRequest) -> JSONResponse:
             }
         )
     except RuntimeError as exc:
-        raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail={"error": "Falha ao gerar áudio."}) from exc
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error", "provider": payload.provider, "detail": str(exc)},
+        )
+    except Exception:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "provider": payload.provider, "detail": "Falha ao gerar áudio."},
+        )
 
 
 app.mount("/generated", StaticFiles(directory=str(GENERATED_DIR)), name="generated")
