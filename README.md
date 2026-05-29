@@ -145,6 +145,44 @@ Aviso:
 - nunca commite `.env`;
 - nunca commite o JSON de credencial do Google.
 
+## CI / GitHub Actions
+
+O workflow em `.github/workflows/ci.yml` valida o projeto a cada `push` e `pull_request`.
+
+Ele executa:
+
+- instalação das dependências;
+- `py_compile`;
+- `GET /health`;
+- `GET /api/providers`;
+- geração com `mock`;
+- `GET /api/history`;
+- `docker build`.
+
+O CI não usa chaves reais. `OpenAI` e `Google` devem ser validados localmente com `.env` configurado.
+
+## Publicação no GitHub
+
+Fluxo mínimo:
+
+1. Verifique o estado do repositório.
+2. Confira o remote existente com `git remote -v`.
+3. Adicione o remote, se necessário.
+4. Renomeie a branch para `main`, se for o padrão do repositório remoto.
+5. Faça `git push -u origin main`.
+
+Comandos modelo:
+
+```bash
+git status
+git remote -v
+git remote add origin git@github.com:escossio/tts-api-switcher.git
+git branch -M main
+git push -u origin main
+```
+
+Se o remote já existir, confirme antes de alterar.
+
 ## Operação mínima
 
 ```bash

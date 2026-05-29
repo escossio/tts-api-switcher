@@ -12,14 +12,17 @@
 - Endpoint /health implementado.
 - Docker healthcheck configurado.
 - .env.production.example criado.
+- GitHub Actions CI criado.
+- CI valida app com provider mock sem chaves externas.
+- Docker build validado no CI.
 - Persistência de `app/generated` e `app/data` configurada.
 - Execução local sem Docker preservada.
 - Documentação de backup/restore simples adicionada.
 - Interface web básica funcional.
 - O provider mock apenas gera áudio de teste local para validar o fluxo completo.
 - Próximos passos:
-  1. Autenticação simples.
-  2. Publicação no GitHub.
+  1. Publicação no GitHub.
+  2. Autenticação simples.
   3. Tela de custos por provider.
   4. Comparação de vozes/providers.
   5. Opção para apagar arquivo físico junto com histórico.
