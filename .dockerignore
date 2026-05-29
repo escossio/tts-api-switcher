@@ -1,0 +1,14 @@
+.git
+.venv
+__pycache__
+.env
+app/generated/*
+!app/generated/.gitkeep
+app/data/*.sqlite3
+app/data/*.db
+app/data/*.sqlite3-*
+app/data/*.db-*
+!app/data/.gitkeep
+*.pyc
+.pytest_cache
+.mypy_cache

@@ -1,0 +1,13 @@
+services:
+  tts-api-switcher:
+    build: .
+    container_name: tts-api-switcher
+    ports:
+      - "8090:8090"
+    env_file:
+      - .env
+    volumes:
+      - ./app/generated:/app/app/generated
+      - ./app/data:/app/app/data
+      - /srv/secrets:/srv/secrets:ro
+    restart: unless-stopped

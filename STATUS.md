@@ -7,11 +7,15 @@
 - Provider Google implementado.
 - Google depende de `GOOGLE_TTS_ENABLED=true` e `GOOGLE_APPLICATION_CREDENTIALS`.
 - Histórico local implementado com SQLite.
+- Dockerfile criado.
+- docker-compose.yml criado.
+- Persistência de `app/generated` e `app/data` configurada.
+- Execução local sem Docker preservada.
 - Interface web básica funcional.
 - O provider mock apenas gera áudio de teste local para validar o fluxo completo.
 - Próximos passos:
-  1. Docker.
-  2. Autenticação simples.
-  3. Custos por provider.
-  4. Tela de comparação de vozes/providers.
-  5. Opção de apagar arquivo físico junto com histórico.
+  1. Autenticação simples.
+  2. Tela de custos por provider.
+  3. Comparação de vozes/providers.
+  4. Opção para apagar arquivo físico junto com histórico.
+  5. Publicação no GitHub.

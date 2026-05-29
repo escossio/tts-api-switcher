@@ -83,6 +83,60 @@ Acesse:
 http://127.0.0.1:8090
 ```
 
+## Docker
+
+Crie o arquivo `.env` a partir do exemplo, se ainda não existir:
+
+```bash
+cp .env.example .env
+```
+
+Subir com build:
+
+```bash
+docker compose up --build
+```
+
+Subir em background:
+
+```bash
+docker compose up -d --build
+```
+
+Ver logs:
+
+```bash
+docker compose logs -f
+```
+
+Parar a aplicação:
+
+```bash
+docker compose down
+```
+
+Acesse:
+
+```text
+http://127.0.0.1:8090
+```
+
+Persistência:
+
+- `./app/generated` guarda os áudios gerados.
+- `./app/data` guarda o SQLite do histórico.
+
+Google TTS no Docker:
+
+- mantenha o JSON de credencial fora do repositório, por exemplo em `/srv/secrets/google-tts-service-account.json`;
+- o `docker-compose.yml` monta `/srv/secrets` como leitura apenas;
+- configure `GOOGLE_APPLICATION_CREDENTIALS=/srv/secrets/google-tts-service-account.json` no `.env`.
+
+Aviso:
+
+- nunca commite `.env`;
+- nunca commite o JSON de credencial do Google.
+
 ## Teste com provider mock
 
 Use o provedor `mock` para validar o fluxo completo sem API externa.
