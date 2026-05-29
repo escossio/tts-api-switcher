@@ -2,13 +2,26 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .base import TTSProvider, TTSResult
+from .base import TTSProvider, TTSResult, normalize_voice
 
 
 class GoogleProvider(TTSProvider):
     id = "google"
     name = "Google Text-to-Speech"
     default_extension = ".mp3"
+    supports_voice_list = True
+
+    SUPPORTED_VOICES = [
+        "pt-BR-Neural2-A",
+        "pt-BR-Neural2-B",
+        "pt-BR-Neural2-C",
+        "pt-BR-Wavenet-A",
+        "pt-BR-Wavenet-B",
+        "pt-BR-Wavenet-C",
+        "pt-BR-Standard-A",
+        "pt-BR-Standard-B",
+        "pt-BR-Standard-C",
+    ]
 
     def __init__(
         self,
@@ -33,6 +46,19 @@ class GoogleProvider(TTSProvider):
         if not self.credentials_path:
             return "GOOGLE_APPLICATION_CREDENTIALS não configurada no .env."
         return None
+
+    def list_voices(self) -> list[dict[str, object]]:
+        default_voice = (self.voice or "").strip()
+        return [
+            normalize_voice(
+                voice,
+                name=voice,
+                language="pt-BR",
+                description="Lista padrão inicial de vozes pt-BR para Google TTS.",
+                default=voice == default_voice,
+            )
+            for voice in self.SUPPORTED_VOICES
+        ]
 
     def generate(
         self,

@@ -126,7 +126,50 @@ def provider_list_item(provider_id: str) -> dict[str, object]:
         "name": provider.name,
         "enabled": provider.is_enabled(),
         "disabled_reason": disabled_reason,
+        "supports_voice_list": provider.supports_voice_list,
     }
+
+
+def provider_voice_response(provider_id: str) -> JSONResponse:
+    provider = PROVIDERS.get(provider_id)
+    if provider is None:
+        return JSONResponse(status_code=404, content={"detail": "Provider não encontrado."})
+
+    enabled = provider.is_enabled()
+    voices: list[dict[str, object]] = []
+    message: str | None = None
+
+    if provider_id == "elevenlabs" and not enabled:
+        message = provider.disabled_reason() or "Provider desabilitado. Configure as credenciais no .env."
+        return JSONResponse(
+            {
+                "provider": provider.id,
+                "enabled": False,
+                "voices": [],
+                "message": message,
+            }
+        )
+
+    try:
+        voices = provider.list_voices()
+    except RuntimeError as exc:
+        message = str(exc)
+        voices = []
+    except Exception:
+        message = "Falha ao listar vozes. Tente novamente ou use o campo manual."
+        voices = []
+
+    if not enabled and message is None:
+        message = provider.disabled_reason() or "Provider desabilitado. Configure as credenciais no .env."
+
+    content: dict[str, object] = {
+        "provider": provider.id,
+        "enabled": enabled,
+        "voices": voices,
+    }
+    if message:
+        content["message"] = message
+    return JSONResponse(content)
 
 
 @app.on_event("startup")
@@ -162,6 +205,11 @@ def health() -> JSONResponse:
 def list_providers() -> JSONResponse:
     providers = [provider_list_item(provider_id) for provider_id in PROVIDER_ORDER]
     return JSONResponse({"providers": providers})
+
+
+@app.get("/api/providers/{provider_id}/voices")
+def list_provider_voices(provider_id: str) -> JSONResponse:
+    return provider_voice_response(provider_id)
 
 
 @app.get("/api/history")

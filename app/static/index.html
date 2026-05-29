@@ -34,8 +34,15 @@
         </label>
 
         <label class="field">
-          <span>Voz</span>
-          <input id="voice" type="text" placeholder="Opcional" />
+          <span>Voz / Voice ID</span>
+          <div class="voice-toolbar">
+            <select id="voice-select" disabled>
+              <option value="">Nenhuma voz disponível</option>
+            </select>
+            <button id="refresh-voices" type="button" class="secondary small">Atualizar vozes</button>
+          </div>
+          <input id="voice" type="text" placeholder="Voice ID manual (fallback)" />
+          <div id="voice-status" class="status voice-status">Carregando vozes...</div>
         </label>
 
         <label class="field">

@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from urllib import error, request
 
-from .base import TTSProvider, TTSResult
+from .base import TTSProvider, TTSResult, normalize_voice
 
 
 class ElevenLabsProvider(TTSProvider):
     id = "elevenlabs"
     name = "ElevenLabs"
     default_extension = ".mp3"
+    supports_voice_list = True
 
     def __init__(self, api_key: str, model: str, voice_id: str, output_format: str) -> None:
         self.api_key = api_key
@@ -23,6 +26,61 @@ class ElevenLabsProvider(TTSProvider):
         if not self.api_key:
             return "ELEVENLABS_API_KEY não configurada no .env."
         return None
+
+    def list_voices(self) -> list[dict[str, object]]:
+        if not self.api_key:
+            return []
+
+        voices = self._fetch_voices()
+        default_voice = (self.voice_id or "").strip()
+        normalized: list[dict[str, object]] = []
+        for item in voices:
+            voice_id = str(item.get("voice_id") or item.get("id") or "").strip()
+            if not voice_id:
+                continue
+            name = str(item.get("name") or voice_id).strip()
+            labels = item.get("labels") if isinstance(item.get("labels"), dict) else {}
+            language = str(item.get("language") or labels.get("language") or "").strip()
+            gender = str(item.get("gender") or labels.get("gender") or "").strip()
+            description = str(item.get("description") or item.get("category") or "").strip()
+            normalized.append(
+                normalize_voice(
+                    voice_id,
+                    name=name,
+                    language=language,
+                    gender=gender,
+                    description=description,
+                    default=voice_id == default_voice,
+                )
+            )
+        return normalized
+
+    def _fetch_voices(self) -> list[dict[str, object]]:
+        url = "https://api.elevenlabs.io/v1/voices"
+        req = request.Request(
+            url,
+            headers={
+                "xi-api-key": self.api_key,
+                "Accept": "application/json",
+            },
+            method="GET",
+        )
+
+        try:
+            with request.urlopen(req, timeout=15) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except error.HTTPError as exc:
+            raise RuntimeError(f"Falha ao listar vozes da ElevenLabs: HTTP {exc.code}.") from exc
+        except error.URLError as exc:
+            raise RuntimeError("Falha ao listar vozes da ElevenLabs: erro de rede.") from exc
+        except Exception as exc:
+            raise RuntimeError("Falha ao listar vozes da ElevenLabs.") from exc
+
+        if isinstance(payload, dict):
+            voices = payload.get("voices", [])
+            if isinstance(voices, list):
+                return [item for item in voices if isinstance(item, dict)]
+        return []
 
     def generate(
         self,

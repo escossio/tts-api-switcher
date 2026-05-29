@@ -3,13 +3,20 @@ from __future__ import annotations
 from html import escape
 from pathlib import Path
 
-from .base import TTSProvider, TTSResult
+from .base import TTSProvider, TTSResult, normalize_voice
 
 
 class PollyProvider(TTSProvider):
     id = "polly"
     name = "Amazon Polly"
     default_extension = ".mp3"
+    supports_voice_list = True
+
+    SUPPORTED_VOICES = [
+        "Camila",
+        "Vitoria",
+        "Thiago",
+    ]
 
     def __init__(
         self,
@@ -36,6 +43,19 @@ class PollyProvider(TTSProvider):
         if not self.default_region:
             return "AWS_DEFAULT_REGION não configurada no .env."
         return None
+
+    def list_voices(self) -> list[dict[str, object]]:
+        default_voice = (self.voice_id or "").strip()
+        return [
+            normalize_voice(
+                voice,
+                name=voice,
+                language="pt-BR",
+                description="Lista padrão inicial de vozes pt-BR para Amazon Polly.",
+                default=voice == default_voice,
+            )
+            for voice in self.SUPPORTED_VOICES
+        ]
 
     def generate(
         self,

@@ -2,13 +2,28 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .base import TTSProvider, TTSResult
+from .base import TTSProvider, TTSResult, normalize_voice
 
 
 class OpenAIProvider(TTSProvider):
     id = "openai"
     name = "OpenAI TTS"
     default_extension = ".mp3"
+    supports_voice_list = True
+
+    SUPPORTED_VOICES = [
+        "alloy",
+        "ash",
+        "ballad",
+        "coral",
+        "echo",
+        "fable",
+        "nova",
+        "onyx",
+        "sage",
+        "shimmer",
+        "verse",
+    ]
 
     def __init__(self, api_key: str, model: str, voice: str, audio_format: str) -> None:
         self.api_key = api_key
@@ -23,6 +38,18 @@ class OpenAIProvider(TTSProvider):
         if not self.api_key:
             return "OPENAI_API_KEY não configurada no .env."
         return None
+
+    def list_voices(self) -> list[dict[str, object]]:
+        default_voice = (self.voice or "").strip()
+        return [
+            normalize_voice(
+                voice,
+                name=voice,
+                description="Voz suportada pelo app para OpenAI TTS.",
+                default=voice == default_voice,
+            )
+            for voice in self.SUPPORTED_VOICES
+        ]
 
     def generate(
         self,

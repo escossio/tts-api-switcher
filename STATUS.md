@@ -24,9 +24,11 @@
 - Suporte real adicionado para ElevenLabs, Azure Speech e Amazon Polly, mantendo mock, OpenAI, Google, histórico, Docker e CI.
 - Front atualizado para listar e bloquear providers desabilitados com aviso contextual.
 - Variáveis de ambiente novas documentadas em `.env.example`, `.env.production.example` e `README.md`.
+- Seleção de vozes por provider implementada no backend e no painel web.
+- ElevenLabs agora pode listar vozes reais da conta via `GET /api/providers/elevenlabs/voices`.
+- Campo manual preservado como fallback quando a lista dinâmica falhar ou estiver vazia.
 - Próximos passos:
-  1. Publicação no GitHub.
-  2. Autenticação simples.
-  3. Tela de custos por provider.
-  4. Comparação de vozes/providers.
-  5. Opção para apagar arquivo físico junto com histórico.
+  1. Busca dinâmica real de vozes Google/Azure/Polly.
+  2. Comparação lado a lado de providers.
+  3. Autenticação simples.
+  4. Estimativa de custo por geração.

@@ -1,7 +1,9 @@
 const textEl = document.getElementById("text");
 const providerEl = document.getElementById("provider");
 const languageEl = document.getElementById("language");
+const voiceSelectEl = document.getElementById("voice-select");
 const voiceEl = document.getElementById("voice");
+const refreshVoicesBtn = document.getElementById("refresh-voices");
 const speedEl = document.getElementById("speed");
 const generateBtn = document.getElementById("generate");
 const statusEl = document.getElementById("status");
@@ -10,11 +12,13 @@ const playerEl = document.getElementById("player");
 const downloadEl = document.getElementById("download");
 const providerStatusEl = document.getElementById("provider-status");
 const providerNoteEl = document.getElementById("provider-note");
+const voiceStatusEl = document.getElementById("voice-status");
 const historyListEl = document.getElementById("history-list");
 const historyStatusEl = document.getElementById("history-status");
 const refreshHistoryBtn = document.getElementById("refresh-history");
 
 const providerState = {};
+const voiceCatalogState = {};
 
 function setStatus(message, type = "") {
   statusEl.textContent = message;
@@ -39,6 +43,11 @@ function clearProviderState() {
   });
 }
 
+function setVoiceStatus(message, type = "") {
+  voiceStatusEl.textContent = message;
+  voiceStatusEl.className = `status voice-status ${type}`.trim();
+}
+
 function renderProviderNote(provider) {
   providerNoteEl.className = "provider-note";
   if (!provider) {
@@ -60,6 +69,118 @@ function renderProviderNote(provider) {
   }
 
   providerNoteEl.textContent = "";
+}
+
+function renderVoiceOptions(providerId, voices, selectedVoiceId = "") {
+  voiceSelectEl.replaceChildren();
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = voices.length ? "Selecione uma voz" : "Nenhuma voz disponível";
+  voiceSelectEl.appendChild(placeholder);
+
+  voices.forEach((voice) => {
+    const option = document.createElement("option");
+    option.value = voice.id;
+    const showVoiceId = providerId === "elevenlabs" || voice.name !== voice.id;
+    option.textContent = showVoiceId ? `${voice.name} — ${voice.id}` : voice.name;
+    if (voice.default) {
+      option.textContent += " (padrão)";
+    }
+    voiceSelectEl.appendChild(option);
+  });
+
+  voiceSelectEl.disabled = !voices.length;
+  if (selectedVoiceId && voices.some((voice) => voice.id === selectedVoiceId)) {
+    voiceSelectEl.value = selectedVoiceId;
+  } else if (!selectedVoiceId) {
+    const defaultVoice = voices.find((voice) => voice.default);
+    if (defaultVoice) {
+      voiceSelectEl.value = defaultVoice.id;
+    }
+  }
+}
+
+function syncVoiceInputFromSelect() {
+  const selectedVoice = voiceSelectEl.value.trim();
+  if (selectedVoice) {
+    voiceEl.value = selectedVoice;
+  }
+}
+
+function renderVoiceState(providerId, payload) {
+  const voices = payload?.voices || [];
+  const message = payload?.message || "";
+
+  voiceCatalogState[providerId] = {
+    voices,
+    message,
+    enabled: Boolean(payload?.enabled),
+  };
+
+  renderVoiceOptions(providerId, voices, voiceEl.value.trim());
+
+  if (voices.length === 0) {
+    if (message) {
+      setVoiceStatus(message, "warn");
+    } else {
+      setVoiceStatus("Provider sem vozes configuradas. Configure credenciais ou informe manualmente.", "warn");
+    }
+    return;
+  }
+
+  const currentVoice = voiceEl.value.trim();
+  const currentVoiceMatches = voices.some((voice) => voice.id === currentVoice);
+  const defaultVoice = voices.find((voice) => voice.default);
+
+  if (currentVoiceMatches) {
+    voiceSelectEl.value = currentVoice;
+  } else if (!currentVoice && defaultVoice) {
+    voiceSelectEl.value = defaultVoice.id;
+    voiceEl.value = defaultVoice.id;
+  }
+
+  if (message) {
+    setVoiceStatus(message, "warn");
+    return;
+  }
+
+  setVoiceStatus("Vozes carregadas.", "ok");
+}
+
+async function loadVoices(providerId, { force = false } = {}) {
+  if (!providerId) {
+    voiceSelectEl.replaceChildren();
+    voiceSelectEl.disabled = true;
+    setVoiceStatus("Provider não selecionado.", "warn");
+    return;
+  }
+
+  if (!force && voiceCatalogState[providerId]) {
+    renderVoiceState(providerId, voiceCatalogState[providerId]);
+    return;
+  }
+
+  setVoiceStatus("Carregando vozes...");
+  voiceSelectEl.disabled = true;
+
+  try {
+    const response = await fetch(`/api/providers/${providerId}/voices`);
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data?.detail || data?.message || "Falha ao carregar vozes.");
+    }
+    renderVoiceState(providerId, data);
+  } catch (error) {
+    voiceSelectEl.replaceChildren();
+    voiceSelectEl.disabled = true;
+    setVoiceStatus(error.message || "Falha ao carregar vozes.", "error");
+    voiceCatalogState[providerId] = {
+      voices: [],
+      message: error.message,
+      enabled: false,
+    };
+  }
 }
 
 function renderProviderStatus(providers) {
@@ -200,6 +321,7 @@ async function loadProviders() {
     const data = await response.json();
     renderProviderStatus(data.providers || []);
     setStatus("Pronto para gerar.", "");
+    await loadVoices(providerEl.value);
   } catch (error) {
     setStatus("Falha ao carregar provedores.", "error");
   }
@@ -288,6 +410,24 @@ generateBtn.addEventListener("click", async () => {
 refreshHistoryBtn.addEventListener("click", loadHistory);
 providerEl.addEventListener("change", () => {
   renderProviderNote(providerState[providerEl.value]);
+  voiceEl.value = "";
+  voiceSelectEl.value = "";
+  loadVoices(providerEl.value);
+});
+voiceSelectEl.addEventListener("change", syncVoiceInputFromSelect);
+refreshVoicesBtn.addEventListener("click", () => loadVoices(providerEl.value, { force: true }));
+voiceEl.addEventListener("input", () => {
+  const current = voiceEl.value.trim();
+  const catalog = voiceCatalogState[providerEl.value]?.voices || [];
+  if (!current) {
+    voiceSelectEl.value = "";
+    return;
+  }
+  if (catalog.some((voice) => voice.id === current)) {
+    voiceSelectEl.value = current;
+    return;
+  }
+  voiceSelectEl.value = "";
 });
 
 loadProviders();

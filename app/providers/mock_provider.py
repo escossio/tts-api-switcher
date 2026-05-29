@@ -6,12 +6,13 @@ import struct
 import wave
 from pathlib import Path
 
-from .base import TTSProvider, TTSResult
+from .base import TTSProvider, TTSResult, normalize_voice
 
 
 class MockProvider(TTSProvider):
     id = "mock"
     name = "Mock Provider"
+    supports_voice_list = True
 
     def generate(
         self,
@@ -50,3 +51,14 @@ class MockProvider(TTSProvider):
                 sample = int(amplitude * math.sin(2 * math.pi * base_freq * index / sample_rate))
                 frames.extend(struct.pack("<h", sample))
             wav_file.writeframes(bytes(frames))
+
+    def list_voices(self) -> list[dict[str, object]]:
+        return [
+            normalize_voice(
+                "mock-tone",
+                name="Mock test tone",
+                language="test",
+                description="Gera apenas tom/zumbido de teste, não fala o texto.",
+                default=True,
+            )
+        ]

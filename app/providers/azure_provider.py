@@ -3,13 +3,31 @@ from __future__ import annotations
 from html import escape
 from pathlib import Path
 
-from .base import TTSProvider, TTSResult
+from .base import TTSProvider, TTSResult, normalize_voice
 
 
 class AzureProvider(TTSProvider):
     id = "azure"
     name = "Azure Speech"
     default_extension = ".mp3"
+    supports_voice_list = True
+
+    SUPPORTED_VOICES = [
+        "pt-BR-FranciscaNeural",
+        "pt-BR-AntonioNeural",
+        "pt-BR-BrendaNeural",
+        "pt-BR-DonatoNeural",
+        "pt-BR-ElzaNeural",
+        "pt-BR-FabioNeural",
+        "pt-BR-GiovannaNeural",
+        "pt-BR-HumbertoNeural",
+        "pt-BR-JulioNeural",
+        "pt-BR-LeilaNeural",
+        "pt-BR-ManuelaNeural",
+        "pt-BR-NicolauNeural",
+        "pt-BR-ValerioNeural",
+        "pt-BR-YaraNeural",
+    ]
 
     def __init__(self, key: str, region: str, endpoint: str, voice: str, output_format: str) -> None:
         self.key = key
@@ -27,6 +45,19 @@ class AzureProvider(TTSProvider):
         if not (self.region or self.endpoint):
             return "Defina AZURE_SPEECH_REGION ou AZURE_SPEECH_ENDPOINT no .env."
         return None
+
+    def list_voices(self) -> list[dict[str, object]]:
+        default_voice = (self.voice or "").strip()
+        return [
+            normalize_voice(
+                voice,
+                name=voice,
+                language="pt-BR",
+                description="Lista padrão inicial de vozes pt-BR para Azure Speech.",
+                default=voice == default_voice,
+            )
+            for voice in self.SUPPORTED_VOICES
+        ]
 
     def generate(
         self,

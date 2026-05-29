@@ -94,6 +94,17 @@ Observações:
 - os arquivos gerados continuam em `app/generated/`;
 - apagar o histórico não apaga o arquivo físico nesta etapa.
 
+## Seleção de vozes
+
+O painel web consulta `GET /api/providers/{provider_id}/voices` para carregar a lista de vozes disponível por provider.
+
+- `mock` retorna uma voz fixa de teste.
+- `OpenAI`, `Google`, `Azure` e `Polly` usam listas padrão inicialmente, sem chamada externa.
+- `ElevenLabs` pode buscar as vozes reais da conta quando `ELEVENLABS_API_KEY` estiver configurada.
+- o campo manual continua disponível como fallback para `voice` ou `Voice ID`.
+
+Se a listagem dinâmica falhar, a geração manual continua funcionando com o valor informado no campo de voz.
+
 ## Execução
 
 ```bash
