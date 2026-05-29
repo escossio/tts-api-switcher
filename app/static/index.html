@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tts-api-switcher</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <p class="eyebrow">tts-api-switcher</p>
+      <h1>Texto para áudio com múltiplos provedores</h1>
+      <p class="subtitle">Cole o texto, escolha o provider e gere um arquivo WAV para ouvir ou baixar.</p>
+    </section>
+
+    <section class="card">
+      <div class="grid">
+        <label class="field full">
+          <span>Texto</span>
+          <textarea id="text" maxlength="5000" placeholder="Cole aqui o texto para narração"></textarea>
+        </label>
+
+        <label class="field">
+          <span>Provedor</span>
+          <select id="provider">
+            <option value="mock">mock</option>
+            <option value="openai">openai</option>
+            <option value="google">google</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Idioma</span>
+          <input id="language" type="text" value="pt-BR" />
+        </label>
+
+        <label class="field">
+          <span>Voz</span>
+          <input id="voice" type="text" placeholder="Opcional" />
+        </label>
+
+        <label class="field">
+          <span>Velocidade</span>
+          <input id="speed" type="number" min="0.5" max="2" step="0.1" value="1.0" />
+        </label>
+      </div>
+
+      <div class="actions">
+        <button id="generate">Gerar áudio</button>
+      </div>
+
+      <div id="status" class="status">Pronto para gerar.</div>
+
+      <div id="result" class="result hidden">
+        <audio id="player" controls></audio>
+        <a id="download" href="#" download>Baixar arquivo</a>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
+
