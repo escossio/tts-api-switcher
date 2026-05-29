@@ -26,3 +26,6 @@ class TTSProvider:
 
     def is_enabled(self) -> bool:
         return True
+
+    def disabled_reason(self) -> str | None:
+        return None

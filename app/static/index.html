@@ -11,7 +11,7 @@
     <section class="hero">
       <p class="eyebrow">tts-api-switcher</p>
       <h1>Texto para áudio com múltiplos provedores</h1>
-      <p class="subtitle">Cole o texto, escolha o provider e gere um arquivo WAV para ouvir ou baixar.</p>
+      <p class="subtitle">Cole o texto, escolha o provider e gere um arquivo de áudio para ouvir ou baixar.</p>
     </section>
 
     <section class="card">
@@ -23,12 +23,9 @@
 
         <label class="field">
           <span>Provedor</span>
-          <select id="provider">
-            <option value="mock">mock</option>
-            <option value="openai">openai</option>
-            <option value="google">google</option>
-          </select>
+          <select id="provider"></select>
           <div id="provider-status" class="provider-status"></div>
+          <div id="provider-note" class="provider-note"></div>
         </label>
 
         <label class="field">

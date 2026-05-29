@@ -14,8 +14,11 @@ from pydantic import BaseModel, Field
 from app.config import settings
 from app.db import add_history_item, delete_all_history, delete_history_item, get_history_item, init_db, list_history
 from app.history import history_item_to_dict
+from app.providers.azure_provider import AzureProvider
+from app.providers.elevenlabs_provider import ElevenLabsProvider
 from app.providers.google_provider import GoogleProvider
 from app.providers.mock_provider import MockProvider
+from app.providers.polly_provider import PollyProvider
 from app.providers.openai_provider import OpenAIProvider
 
 
@@ -31,7 +34,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 class GenerateAudioRequest(BaseModel):
     text: str = Field(min_length=1, max_length=5000)
-    provider: str = Field(pattern="^(mock|openai|google)$")
+    provider: str = Field(min_length=1, max_length=32)
     language: str = Field(default="pt-BR", min_length=2, max_length=20)
     voice: str = Field(default="", max_length=100)
     speed: float = Field(default=1.0, ge=0.5, le=2.0)
@@ -52,7 +55,30 @@ PROVIDERS = {
         language_code=settings.google_tts_language_code,
         audio_encoding=settings.google_tts_audio_encoding,
     ),
+    "elevenlabs": ElevenLabsProvider(
+        api_key=settings.elevenlabs_api_key,
+        model=settings.elevenlabs_model,
+        voice_id=settings.elevenlabs_voice_id,
+        output_format=settings.elevenlabs_output_format,
+    ),
+    "azure": AzureProvider(
+        key=settings.azure_speech_key,
+        region=settings.azure_speech_region,
+        endpoint=settings.azure_speech_endpoint,
+        voice=settings.azure_speech_voice,
+        output_format=settings.azure_speech_output_format,
+    ),
+    "polly": PollyProvider(
+        access_key_id=settings.aws_access_key_id,
+        secret_access_key=settings.aws_secret_access_key,
+        default_region=settings.aws_default_region,
+        voice_id=settings.aws_polly_voice_id,
+        engine=settings.aws_polly_engine,
+        output_format=settings.aws_polly_output_format,
+    ),
 }
+
+PROVIDER_ORDER = ["mock", "openai", "google", "elevenlabs", "azure", "polly"]
 
 
 def sanitize_filename(name: str) -> str:
@@ -92,6 +118,17 @@ def check_sqlite_accessible() -> bool:
         return False
 
 
+def provider_list_item(provider_id: str) -> dict[str, object]:
+    provider = PROVIDERS[provider_id]
+    disabled_reason = provider.disabled_reason()
+    return {
+        "id": provider.id,
+        "name": provider.name,
+        "enabled": provider.is_enabled(),
+        "disabled_reason": disabled_reason,
+    }
+
+
 @app.on_event("startup")
 def startup() -> None:
     init_db()
@@ -123,23 +160,7 @@ def health() -> JSONResponse:
 
 @app.get("/api/providers")
 def list_providers() -> JSONResponse:
-    providers = [
-        {
-            "id": "mock",
-            "name": "Mock Provider",
-            "enabled": True,
-        },
-        {
-            "id": "openai",
-            "name": "OpenAI TTS",
-            "enabled": PROVIDERS["openai"].is_enabled(),
-        },
-        {
-            "id": "google",
-            "name": "Google Text-to-Speech",
-            "enabled": PROVIDERS["google"].is_enabled(),
-        },
-    ]
+    providers = [provider_list_item(provider_id) for provider_id in PROVIDER_ORDER]
     return JSONResponse({"providers": providers})
 
 
@@ -193,11 +214,7 @@ def generate_audio(payload: GenerateAudioRequest) -> JSONResponse:
         )
 
     if not provider.is_enabled():
-        detail = "Provider desativado ou não configurado."
-        if payload.provider == "openai":
-            detail = "OPENAI_API_KEY não configurada no .env."
-        elif payload.provider == "google":
-            detail = "Google TTS desativado ou sem credenciais."
+        detail = provider.disabled_reason() or "Provider desativado ou não configurado."
         add_history_item(
             provider=payload.provider,
             status="error",

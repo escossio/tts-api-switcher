@@ -20,6 +20,10 @@
 - Documentação de backup/restore simples adicionada.
 - Interface web básica funcional.
 - O provider mock apenas gera áudio de teste local para validar o fluxo completo.
+- Diagnóstico de acesso LAN validado: o serviço estava parado quando o acesso remoto falhou; com `docker compose up -d --build`, a porta 8090 passou a responder em `0.0.0.0`.
+- Suporte real adicionado para ElevenLabs, Azure Speech e Amazon Polly, mantendo mock, OpenAI, Google, histórico, Docker e CI.
+- Front atualizado para listar e bloquear providers desabilitados com aviso contextual.
+- Variáveis de ambiente novas documentadas em `.env.example`, `.env.production.example` e `README.md`.
 - Próximos passos:
   1. Publicação no GitHub.
   2. Autenticação simples.

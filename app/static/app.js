@@ -9,6 +9,7 @@ const resultEl = document.getElementById("result");
 const playerEl = document.getElementById("player");
 const downloadEl = document.getElementById("download");
 const providerStatusEl = document.getElementById("provider-status");
+const providerNoteEl = document.getElementById("provider-note");
 const historyListEl = document.getElementById("history-list");
 const historyStatusEl = document.getElementById("history-status");
 const refreshHistoryBtn = document.getElementById("refresh-history");
@@ -32,31 +33,67 @@ function formatDateTime(value) {
   return date.toLocaleString("pt-BR");
 }
 
-function renderProviderStatus(providers) {
-  providerStatusEl.innerHTML = "";
-  providerStatusEl.replaceChildren(
-    ...providers.map((provider) => {
-      providerState[provider.id] = provider;
-      const pill = document.createElement("span");
-      pill.className = `pill ${provider.enabled ? "enabled" : "disabled"}`;
-      pill.textContent = `${provider.name}: ${provider.enabled ? "habilitado" : "desabilitado"}`;
-      return pill;
-    })
-  );
-
-  [...providerEl.options].forEach((option) => {
-    const provider = providerState[option.value];
-    if (provider) {
-      option.disabled = !provider.enabled;
-    }
+function clearProviderState() {
+  Object.keys(providerState).forEach((key) => {
+    delete providerState[key];
   });
+}
 
-  if (providerState[providerEl.value] && !providerState[providerEl.value].enabled) {
-    const firstEnabled = providers.find((provider) => provider.enabled);
-    if (firstEnabled) {
-      providerEl.value = firstEnabled.id;
+function renderProviderNote(provider) {
+  providerNoteEl.className = "provider-note";
+  if (!provider) {
+    providerNoteEl.textContent = "";
+    return;
+  }
+
+  if (provider.id === "mock") {
+    providerNoteEl.textContent = "Mock é apenas teste: gera um tom/zumbido em WAV, não fala o texto.";
+    providerNoteEl.classList.add("info");
+    return;
+  }
+
+  if (!provider.enabled) {
+    providerNoteEl.textContent =
+      provider.disabled_reason || "Configure as credenciais deste provider no .env para gerar voz real.";
+    providerNoteEl.classList.add("warn");
+    return;
+  }
+
+  providerNoteEl.textContent = "";
+}
+
+function renderProviderStatus(providers) {
+  clearProviderState();
+  providerStatusEl.replaceChildren();
+  providerEl.replaceChildren();
+
+  const fragment = document.createDocumentFragment();
+  providers.forEach((provider) => {
+    providerState[provider.id] = provider;
+
+    const pill = document.createElement("span");
+    pill.className = `pill ${provider.enabled ? "enabled" : "disabled"}`;
+    pill.textContent = `${provider.name}: ${provider.enabled ? "habilitado" : "desabilitado"}`;
+    fragment.appendChild(pill);
+
+    const option = document.createElement("option");
+    option.value = provider.id;
+    option.textContent = provider.name;
+    option.disabled = !provider.enabled;
+    option.title = provider.disabled_reason || "";
+    providerEl.appendChild(option);
+  });
+  providerStatusEl.appendChild(fragment);
+
+  const enabledProvider = providers.find((provider) => provider.enabled);
+  if (enabledProvider) {
+    const currentProvider = providerState[providerEl.value];
+    if (!currentProvider || !currentProvider.enabled) {
+      providerEl.value = enabledProvider.id;
     }
   }
+
+  renderProviderNote(providerState[providerEl.value]);
 }
 
 function renderHistory(items) {
@@ -162,6 +199,7 @@ async function loadProviders() {
     const response = await fetch("/api/providers");
     const data = await response.json();
     renderProviderStatus(data.providers || []);
+    setStatus("Pronto para gerar.", "");
   } catch (error) {
     setStatus("Falha ao carregar provedores.", "error");
   }
@@ -198,6 +236,7 @@ async function deleteHistoryItem(itemId) {
 generateBtn.addEventListener("click", async () => {
   const selectedProvider = providerState[providerEl.value];
   if (selectedProvider && !selectedProvider.enabled) {
+    renderProviderNote(selectedProvider);
     setStatus("Provider selecionado está desabilitado.", "error");
     return;
   }
@@ -247,6 +286,9 @@ generateBtn.addEventListener("click", async () => {
 });
 
 refreshHistoryBtn.addEventListener("click", loadHistory);
+providerEl.addEventListener("change", () => {
+  renderProviderNote(providerState[providerEl.value]);
+});
 
 loadProviders();
 loadHistory();

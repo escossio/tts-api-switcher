@@ -9,7 +9,7 @@ MVP com:
 - interface web simples em HTML, CSS e JavaScript puro;
 - backend em FastAPI;
 - provider `mock` local para testar o fluxo sem credenciais;
-- estrutura preparada para OpenAI e Google TTS.
+- estrutura preparada para OpenAI, Google TTS, ElevenLabs, Azure Speech e Amazon Polly.
 - histórico local em SQLite para acompanhar as últimas gerações.
 
 ## Estrutura
@@ -56,8 +56,23 @@ Variáveis principais:
 - `GOOGLE_TTS_ENABLED`: habilita o provider Google.
 - `GOOGLE_APPLICATION_CREDENTIALS`: caminho para credenciais do Google.
 - `GOOGLE_TTS_VOICE`: voz padrão do Google.
+- `ELEVENLABS_API_KEY`: chave da ElevenLabs.
+- `ELEVENLABS_MODEL`: modelo ElevenLabs, padrão `eleven_multilingual_v2`.
+- `ELEVENLABS_VOICE_ID`: voz padrão da ElevenLabs.
+- `ELEVENLABS_OUTPUT_FORMAT`: formato ElevenLabs, padrão `mp3_44100_128`.
+- `AZURE_SPEECH_KEY`: chave do Azure Speech.
+- `AZURE_SPEECH_REGION`: região do Azure Speech.
+- `AZURE_SPEECH_ENDPOINT`: endpoint do Azure Speech, opcional se a região estiver definida.
+- `AZURE_SPEECH_VOICE`: voz padrão do Azure Speech.
+- `AZURE_SPEECH_OUTPUT_FORMAT`: formato do Azure Speech, padrão `audio-16khz-128kbitrate-mono-mp3`.
+- `AWS_ACCESS_KEY_ID`: chave de acesso da AWS para Polly.
+- `AWS_SECRET_ACCESS_KEY`: segredo de acesso da AWS para Polly.
+- `AWS_DEFAULT_REGION`: região da AWS para Polly.
+- `AWS_POLLY_VOICE_ID`: voz padrão da AWS Polly.
+- `AWS_POLLY_ENGINE`: engine da AWS Polly, padrão `neural`.
+- `AWS_POLLY_OUTPUT_FORMAT`: formato da AWS Polly, padrão `mp3`.
 
-Em produção, `OPENAI_API_KEY` e a credencial do Google devem vir de secret ou arquivo seguro.
+Em produção, `OPENAI_API_KEY`, a credencial do Google, a chave da ElevenLabs, as credenciais do Azure Speech e as credenciais da AWS devem vir de secret ou arquivo seguro.
 
 ## Histórico local
 
@@ -159,7 +174,7 @@ Ele executa:
 - `GET /api/history`;
 - `docker build`.
 
-O CI não usa chaves reais. `OpenAI` e `Google` devem ser validados localmente com `.env` configurado.
+O CI não usa chaves reais. `OpenAI`, `Google`, `ElevenLabs`, `Azure Speech` e `Amazon Polly` devem ser validados localmente com `.env` configurado.
 
 ## Publicação no GitHub
 
@@ -296,6 +311,53 @@ curl -X POST http://127.0.0.1:8090/api/generate-audio \
   -d '{"text":"Olá, este é um teste real usando Google Text-to-Speech.","provider":"google","language":"pt-BR","voice":"pt-BR-Neural2-B","speed":1.0}'
 ```
 
+## Futuro ElevenLabs
+
+Para ativar o provider ElevenLabs:
+
+1. Defina `ELEVENLABS_API_KEY`.
+2. Defina `ELEVENLABS_VOICE_ID` ou informe `voice` no request.
+3. Opcionalmente ajuste `ELEVENLABS_MODEL` e `ELEVENLABS_OUTPUT_FORMAT`.
+
+Teste com ElevenLabs:
+
+```bash
+curl -X POST http://127.0.0.1:8090/api/generate-audio \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Olá, este é um teste real usando ElevenLabs.","provider":"elevenlabs","language":"pt-BR","voice":"","speed":1.0}'
+```
+
+## Futuro Azure Speech
+
+Para ativar o provider Azure Speech:
+
+1. Defina `AZURE_SPEECH_KEY`.
+2. Defina `AZURE_SPEECH_REGION` ou `AZURE_SPEECH_ENDPOINT`.
+3. Opcionalmente ajuste `AZURE_SPEECH_VOICE` e `AZURE_SPEECH_OUTPUT_FORMAT`.
+
+Teste com Azure Speech:
+
+```bash
+curl -X POST http://127.0.0.1:8090/api/generate-audio \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Olá, este é um teste real usando Azure Speech.","provider":"azure","language":"pt-BR","voice":"","speed":1.0}'
+```
+
+## Futuro Amazon Polly
+
+Para ativar o provider Amazon Polly:
+
+1. Defina `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` e `AWS_DEFAULT_REGION`.
+2. Opcionalmente ajuste `AWS_POLLY_VOICE_ID`, `AWS_POLLY_ENGINE` e `AWS_POLLY_OUTPUT_FORMAT`.
+
+Teste com Amazon Polly:
+
+```bash
+curl -X POST http://127.0.0.1:8090/api/generate-audio \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Olá, este é um teste real usando Amazon Polly.","provider":"polly","language":"pt-BR","voice":"","speed":1.0}'
+```
+
 ## Arquitetura dos providers
 
 Os providers seguem uma interface comum em `app/providers/base.py`.
@@ -303,12 +365,15 @@ Os providers seguem uma interface comum em `app/providers/base.py`.
 - `mock`: gera WAV local sem dependências externas.
 - `openai`: usa `client.audio.speech.create()` e salva MP3 em `app/generated/`.
 - `google`: preparado para integração isolada com Google Cloud Text-to-Speech.
+- `elevenlabs`: usa a API oficial da ElevenLabs e salva MP3 em `app/generated/`.
+- `azure`: usa o SDK oficial do Azure Speech e salva MP3 em `app/generated/`.
+- `polly`: usa `boto3` com Amazon Polly e salva MP3 em `app/generated/`.
 
 Isso mantém o backend simples e permite adicionar novos providers sem mexer na interface.
 
 ## Próximos passos
 
-1. Implementar Google TTS real.
+1. Adicionar comparação de custo entre providers.
 2. Adicionar opção de apagar arquivo físico junto com histórico.
-3. Adicionar Docker.
-4. Adicionar autenticação simples.
+3. Adicionar autenticação simples.
+4. Adicionar presets de voz por provider.

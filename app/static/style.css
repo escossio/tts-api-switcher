@@ -91,6 +91,21 @@ h1 {
   gap: 8px;
 }
 
+.provider-note {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+  min-height: 1.5em;
+}
+
+.provider-note.warn {
+  color: #fbbf24;
+}
+
+.provider-note.info {
+  color: #93c5fd;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;

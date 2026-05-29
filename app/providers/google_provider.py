@@ -27,6 +27,13 @@ class GoogleProvider(TTSProvider):
     def is_enabled(self) -> bool:
         return self.enabled and bool(self.credentials_path)
 
+    def disabled_reason(self) -> str | None:
+        if not self.enabled:
+            return "GOOGLE_TTS_ENABLED=false. Provider Google desativado."
+        if not self.credentials_path:
+            return "GOOGLE_APPLICATION_CREDENTIALS não configurada no .env."
+        return None
+
     def generate(
         self,
         text: str,

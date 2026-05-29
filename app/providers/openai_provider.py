@@ -19,6 +19,11 @@ class OpenAIProvider(TTSProvider):
     def is_enabled(self) -> bool:
         return bool(self.api_key)
 
+    def disabled_reason(self) -> str | None:
+        if not self.api_key:
+            return "OPENAI_API_KEY não configurada no .env."
+        return None
+
     def generate(
         self,
         text: str,
