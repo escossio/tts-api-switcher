@@ -27,6 +27,12 @@
 - Seleção de vozes por provider implementada no backend e no painel web.
 - ElevenLabs agora pode listar vozes reais da conta via `GET /api/providers/elevenlabs/voices`.
 - Campo manual preservado como fallback quando a lista dinâmica falhar ou estiver vazia.
+- Credenciais/validação atual:
+  - Azure Speech: recurso `tts-api-switcher-speech` em `eastus`; geração de áudio validada com sucesso.
+  - Google TTS: provider aparece habilitado, mas a geração falhou porque o arquivo de credencial configurado não foi encontrado no caminho esperado; depende de `GOOGLE_TTS_ENABLED=true` e do JSON em `/srv/secrets/google-tts-service-account.json`.
+  - ElevenLabs: provider aparece habilitado, mas a listagem/geração falharam com `401`; depende de `ELEVENLABS_API_KEY` e, idealmente, `ELEVENLABS_VOICE_ID`.
+  - OpenAI: a chave antiga exposta no chat deve ser revogada e substituída por uma chave nova no `.env`; não registrar o valor.
+  - AWS Polly: implementação existe, mas as credenciais ficam para depois.
 - Próximos passos:
   1. Busca dinâmica real de vozes Google/Azure/Polly.
   2. Comparação lado a lado de providers.
