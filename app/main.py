@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI
+from datetime import datetime
+
+from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from app.config import settings
+from app.db import add_history_item, delete_all_history, delete_history_item, get_history_item, init_db, list_history
+from app.history import history_item_to_dict
 from app.providers.google_provider import GoogleProvider
 from app.providers.mock_provider import MockProvider
 from app.providers.openai_provider import OpenAIProvider
@@ -60,6 +63,11 @@ def build_unique_filename(prefix: str, extension: str = ".wav") -> str:
     return sanitize_filename(filename)
 
 
+@app.on_event("startup")
+def startup() -> None:
+    init_db()
+
+
 @app.get("/", response_class=HTMLResponse)
 def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
@@ -87,10 +95,50 @@ def list_providers() -> JSONResponse:
     return JSONResponse({"providers": providers})
 
 
+@app.get("/api/history")
+def api_list_history(limit: int = Query(default=20, ge=1, le=100)) -> JSONResponse:
+    items = [history_item_to_dict(item) for item in list_history(limit=limit)]
+    return JSONResponse({"items": items})
+
+
+@app.get("/api/history/{item_id}")
+def api_get_history_item(item_id: int) -> JSONResponse:
+    item = get_history_item(item_id)
+    if item is None:
+        return JSONResponse(status_code=404, content={"detail": "Item de histórico não encontrado."})
+    return JSONResponse(history_item_to_dict(item))
+
+
+@app.delete("/api/history/{item_id}")
+def api_delete_history_item(item_id: int) -> JSONResponse:
+    deleted = delete_history_item(item_id)
+    if not deleted:
+        return JSONResponse(status_code=404, content={"detail": "Item de histórico não encontrado."})
+    return JSONResponse({"status": "ok", "deleted": True, "file_preserved": True})
+
+
+@app.delete("/api/history")
+def api_delete_all_history() -> JSONResponse:
+    deleted_count = delete_all_history()
+    return JSONResponse({"status": "ok", "deleted": deleted_count})
+
+
 @app.post("/api/generate-audio")
 def generate_audio(payload: GenerateAudioRequest) -> JSONResponse:
     provider = PROVIDERS.get(payload.provider)
     if provider is None:
+        add_history_item(
+            provider=payload.provider,
+            status="error",
+            text=payload.text,
+            language=payload.language,
+            voice=payload.voice,
+            speed=payload.speed,
+            filename=None,
+            audio_url=None,
+            audio_format=None,
+            error_message="Provider inválido.",
+        )
         return JSONResponse(
             status_code=400,
             content={"status": "error", "provider": payload.provider, "detail": "Provider inválido."},
@@ -102,6 +150,18 @@ def generate_audio(payload: GenerateAudioRequest) -> JSONResponse:
             detail = "OPENAI_API_KEY não configurada no .env."
         elif payload.provider == "google":
             detail = "Google TTS desativado ou sem credenciais."
+        add_history_item(
+            provider=payload.provider,
+            status="error",
+            text=payload.text,
+            language=payload.language,
+            voice=payload.voice,
+            speed=payload.speed,
+            filename=None,
+            audio_url=None,
+            audio_format=None,
+            error_message=detail,
+        )
         return JSONResponse(
             status_code=400,
             content={"status": "error", "provider": payload.provider, "detail": detail},
@@ -119,6 +179,19 @@ def generate_audio(payload: GenerateAudioRequest) -> JSONResponse:
             filename=unique_filename,
         )
 
+        add_history_item(
+            provider=payload.provider,
+            status="ok",
+            text=payload.text,
+            language=payload.language,
+            voice=payload.voice,
+            speed=payload.speed,
+            filename=result.filename,
+            audio_url=f"/generated/{result.filename}",
+            audio_format=result.file_path.suffix.lstrip(".") or None,
+            error_message=None,
+        )
+
         return JSONResponse(
             {
                 "status": "ok",
@@ -128,11 +201,35 @@ def generate_audio(payload: GenerateAudioRequest) -> JSONResponse:
             }
         )
     except RuntimeError as exc:
+        add_history_item(
+            provider=payload.provider,
+            status="error",
+            text=payload.text,
+            language=payload.language,
+            voice=payload.voice,
+            speed=payload.speed,
+            filename=None,
+            audio_url=None,
+            audio_format=None,
+            error_message=str(exc),
+        )
         return JSONResponse(
             status_code=400,
             content={"status": "error", "provider": payload.provider, "detail": str(exc)},
         )
     except Exception:
+        add_history_item(
+            provider=payload.provider,
+            status="error",
+            text=payload.text,
+            language=payload.language,
+            voice=payload.voice,
+            speed=payload.speed,
+            filename=None,
+            audio_url=None,
+            audio_format=None,
+            error_message="Falha ao gerar áudio.",
+        )
         return JSONResponse(
             status_code=500,
             content={"status": "error", "provider": payload.provider, "detail": "Falha ao gerar áudio."},

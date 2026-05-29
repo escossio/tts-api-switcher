@@ -10,6 +10,7 @@ MVP com:
 - backend em FastAPI;
 - provider `mock` local para testar o fluxo sem credenciais;
 - estrutura preparada para OpenAI e Google TTS.
+- histórico local em SQLite para acompanhar as últimas gerações.
 
 ## Estrutura
 
@@ -18,6 +19,7 @@ MVP com:
 - `app/providers/`: providers de TTS.
 - `app/static/`: interface web.
 - `app/generated/`: arquivos de áudio gerados.
+- `app/data/tts_history.sqlite3`: histórico local em SQLite.
 
 ## Instalação
 
@@ -48,6 +50,26 @@ Variáveis principais:
 - `GOOGLE_TTS_ENABLED`: habilita o provider Google.
 - `GOOGLE_APPLICATION_CREDENTIALS`: caminho para credenciais do Google.
 - `GOOGLE_TTS_VOICE`: voz padrão do Google.
+
+## Histórico local
+
+A aplicação registra localmente as gerações de áudio em SQLite.
+
+- banco: `app/data/tts_history.sqlite3`
+- tabela: `generation_history`
+- texto salvo no histórico: apenas uma prévia dos primeiros 300 caracteres
+
+Endpoints:
+
+- `GET /api/history?limit=20`
+- `GET /api/history/{id}`
+- `DELETE /api/history/{id}`
+- `DELETE /api/history`
+
+Observações:
+
+- os arquivos gerados continuam em `app/generated/`;
+- apagar o histórico não apaga o arquivo físico nesta etapa.
 
 ## Execução
 
@@ -116,10 +138,7 @@ Isso mantém o backend simples e permite adicionar novos providers sem mexer na 
 
 ## Próximos passos
 
-1. Autenticação.
-2. Histórico de gerações.
-3. Custos por provider.
-4. Escolha avançada de voz.
-5. Suporte a MP3 real.
-6. Docker.
-7. Deploy.
+1. Implementar Google TTS real.
+2. Adicionar opção de apagar arquivo físico junto com histórico.
+3. Adicionar Docker.
+4. Adicionar autenticação simples.
