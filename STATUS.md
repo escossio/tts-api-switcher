@@ -31,11 +31,20 @@
   - Azure Speech: recurso `tts-api-switcher-speech` em `eastus`; geração de áudio validada com sucesso.
   - Google TTS: provider aparece habilitado, mas a geração falhou porque o arquivo de credencial configurado não foi encontrado no caminho esperado; depende de `GOOGLE_TTS_ENABLED=true` e do JSON em `/srv/secrets/google-tts-service-account.json`.
   - Google TTS: a credencial foi colocada em `/srv/secrets/google-tts-service-account.json` e carregou no container; a chamada de síntese agora falha com `SERVICE_DISABLED`, indicando que a API Cloud Text-to-Speech precisa ser habilitada no projeto Google.
-  - ElevenLabs: provider aparece habilitado, mas a listagem/geração falharam com `401`; depende de `ELEVENLABS_API_KEY` e, idealmente, `ELEVENLABS_VOICE_ID`.
-  - OpenAI: a chave antiga exposta no chat deve ser revogada e substituída por uma chave nova no `.env`; não registrar o valor.
-  - AWS Polly: implementação existe, mas as credenciais ficam para depois.
+- ElevenLabs: provider aparece habilitado, mas a listagem/geração falharam com `401`; depende de `ELEVENLABS_API_KEY` e, idealmente, `ELEVENLABS_VOICE_ID`.
+- OpenAI: a chave antiga exposta no chat deve ser revogada e substituída por uma chave nova no `.env`; não registrar o valor.
+- AWS Polly: implementação existe, mas as credenciais ficam para depois.
 - Próximos passos:
   1. Busca dinâmica real de vozes Google/Azure/Polly.
   2. Comparação lado a lado de providers.
   3. Autenticação simples.
   4. Estimativa de custo por geração.
+
+## Provider validation 2026-05-30
+
+- mock: OK, gerou WAV de teste.
+- azure: OK, gerou MP3 de teste.
+- google: enabled, JSON presente em `/srv/secrets/google-tts-service-account.json`, mas a geração ainda falhou com erro genérico do provider.
+- elevenlabs: enabled, listagem de vozes falhou com HTTP 401 e a geração segue sem validar.
+- openai: enabled, geração falhou com erro genérico do provider.
+- polly: disabled por falta de credenciais AWS no `.env`.
