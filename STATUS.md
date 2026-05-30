@@ -29,7 +29,7 @@
 - Campo manual preservado como fallback quando a lista dinâmica falhar ou estiver vazia.
 - Credenciais/validação atual:
   - Azure Speech: recurso `tts-api-switcher-speech` em `eastus`; geração de áudio validada com sucesso.
-  - Google TTS: o JSON agora é legível pelo processo do container, mas a síntese falha com `api_not_enabled`, indicando que a API Cloud Text-to-Speech ainda precisa ser habilitada no projeto Google.
+  - Google TTS: síntese validada com sucesso após habilitar a Cloud Text-to-Speech API no projeto Google.
   - ElevenLabs: `voices` retorna `forbidden_403` por permissão `voices_read` ausente e a geração retorna `unpaid_invoice_or_account_block`.
   - OpenAI: geração validada com sucesso; o provider voltou a gerar MP3.
 - AWS Polly: implementação existe, mas as credenciais ficam para depois.
@@ -43,7 +43,7 @@
 
 - mock: OK, gerou WAV de teste.
 - azure: OK, gerou MP3 de teste.
-- google: enabled, arquivo legível no container, mas a geração falhou com `api_not_enabled`.
+- google: enabled, geração OK e MP3 gerado.
 - elevenlabs: enabled, `voices` falhou com `forbidden_403` e geração falhou com `unpaid_invoice_or_account_block`.
 - openai: enabled, geração OK e MP3 gerado.
 - polly: disabled por falta de credenciais AWS no `.env`.
