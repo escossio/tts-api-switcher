@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .base import TTSProvider, TTSResult, normalize_voice
+from .base import TTSProvider, TTSProviderError, TTSResult, normalize_voice
 
 
 class OpenAIProvider(TTSProvider):
@@ -61,12 +61,15 @@ class OpenAIProvider(TTSProvider):
         filename: str | None = None,
     ) -> TTSResult:
         if not self.api_key:
-            raise RuntimeError("OPENAI_API_KEY não configurada no .env.")
+            raise TTSProviderError("missing_api_key", "OPENAI_API_KEY não configurada no .env.")
 
         try:
             from openai import OpenAI
         except Exception as exc:
-            raise RuntimeError("Dependência da OpenAI não instalada no ambiente.") from exc
+            raise TTSProviderError(
+                "unknown_provider_error",
+                "Dependência da OpenAI não instalada no ambiente.",
+            ) from exc
 
         output_dir.mkdir(parents=True, exist_ok=True)
         target_name = filename or f"openai_output{self.default_extension}"
@@ -86,8 +89,48 @@ class OpenAIProvider(TTSProvider):
             response.stream_to_file(str(file_path))
         except Exception as exc:
             file_path.unlink(missing_ok=True)
-            raise RuntimeError(
-                "Falha ao gerar áudio com OpenAI TTS. Verifique a chave, modelo, voz e conectividade."
+            status_code = getattr(exc, "status_code", None)
+            code = getattr(exc, "code", None)
+            message = str(exc).lower()
+
+            if status_code == 401:
+                raise TTSProviderError(
+                    "unauthorized_401_key_invalid_or_revoked",
+                    "OpenAI recusou a requisição. Verifique a chave, revogação ou permissão da conta.",
+                ) from exc
+
+            if status_code == 429 or code == "insufficient_quota":
+                if "billing" in message or "plan" in message:
+                    raise TTSProviderError(
+                        "billing_required",
+                        "OpenAI recusou a requisição por billing ou plano insuficientes.",
+                    ) from exc
+                raise TTSProviderError(
+                    "quota_exceeded",
+                    "OpenAI recusou a requisição por quota insuficiente.",
+                ) from exc
+
+            if status_code == 400:
+                if "voice" in message:
+                    raise TTSProviderError(
+                        "invalid_voice",
+                        "OpenAI rejeitou a voz informada.",
+                    ) from exc
+                if "model" in message:
+                    raise TTSProviderError(
+                        "invalid_model",
+                        "OpenAI rejeitou o modelo informado.",
+                    ) from exc
+
+            if "connection" in message or "network" in message or "timeout" in message:
+                raise TTSProviderError(
+                    "network_error",
+                    "OpenAI indisponível no momento. Tente novamente.",
+                ) from exc
+
+            raise TTSProviderError(
+                "unknown_provider_error",
+                "Falha ao gerar áudio com OpenAI TTS. Verifique a chave, modelo, voz e conectividade.",
             ) from exc
 
         return TTSResult(filename=filename, file_path=file_path)

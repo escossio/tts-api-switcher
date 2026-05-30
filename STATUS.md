@@ -29,10 +29,9 @@
 - Campo manual preservado como fallback quando a lista dinâmica falhar ou estiver vazia.
 - Credenciais/validação atual:
   - Azure Speech: recurso `tts-api-switcher-speech` em `eastus`; geração de áudio validada com sucesso.
-  - Google TTS: provider aparece habilitado, mas a geração falhou porque o arquivo de credencial configurado não foi encontrado no caminho esperado; depende de `GOOGLE_TTS_ENABLED=true` e do JSON em `/srv/secrets/google-tts-service-account.json`.
-  - Google TTS: a credencial foi colocada em `/srv/secrets/google-tts-service-account.json` e carregou no container; a chamada de síntese agora falha com `SERVICE_DISABLED`, indicando que a API Cloud Text-to-Speech precisa ser habilitada no projeto Google.
-- ElevenLabs: provider aparece habilitado, mas a listagem/geração falharam com `401`; depende de `ELEVENLABS_API_KEY` e, idealmente, `ELEVENLABS_VOICE_ID`.
-- OpenAI: a chave antiga exposta no chat deve ser revogada e substituída por uma chave nova no `.env`; não registrar o valor.
+  - Google TTS: o JSON existe em `/srv/secrets/google-tts-service-account.json`, mas o processo do container não consegue lê-lo; diagnóstico atual: `credentials_file_not_visible_in_container`.
+  - ElevenLabs: `voices` retorna `forbidden_403` por permissão `voices_read` ausente e a geração retorna `unpaid_invoice_or_account_block`.
+  - OpenAI: geração validada com sucesso; o provider voltou a gerar MP3.
 - AWS Polly: implementação existe, mas as credenciais ficam para depois.
 - Próximos passos:
   1. Busca dinâmica real de vozes Google/Azure/Polly.
@@ -44,7 +43,7 @@
 
 - mock: OK, gerou WAV de teste.
 - azure: OK, gerou MP3 de teste.
-- google: enabled, JSON presente em `/srv/secrets/google-tts-service-account.json`, mas a geração ainda falhou com erro genérico do provider.
-- elevenlabs: enabled, listagem de vozes falhou com HTTP 401 e a geração segue sem validar.
-- openai: enabled, geração falhou com erro genérico do provider.
+- google: enabled, mas a geração falhou com `credentials_file_not_visible_in_container`.
+- elevenlabs: enabled, `voices` falhou com `forbidden_403` e geração falhou com `unpaid_invoice_or_account_block`.
+- openai: enabled, geração OK e MP3 gerado.
 - polly: disabled por falta de credenciais AWS no `.env`.

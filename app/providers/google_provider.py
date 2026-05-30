@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .base import TTSProvider, TTSResult, normalize_voice
+from .base import TTSProvider, TTSProviderError, TTSResult, normalize_voice
 
 
 class GoogleProvider(TTSProvider):
@@ -70,19 +70,26 @@ class GoogleProvider(TTSProvider):
         filename: str | None = None,
     ) -> TTSResult:
         if not self.enabled:
-            raise RuntimeError("GOOGLE_TTS_ENABLED=false. Provider Google desativado.")
+            raise TTSProviderError("provider_disabled", "Google TTS desativado no .env.")
         if not self.credentials_path:
-            raise RuntimeError("GOOGLE_APPLICATION_CREDENTIALS não configurada no .env.")
+            raise TTSProviderError("credentials_file_missing", "GOOGLE_APPLICATION_CREDENTIALS não configurada no .env.")
 
         credential_file = Path(self.credentials_path).expanduser()
         if not credential_file.exists():
-            raise RuntimeError("Arquivo de credencial do Google não encontrado no caminho configurado.")
+            raise TTSProviderError(
+                "credentials_file_missing",
+                "Arquivo de credencial do Google não encontrado no caminho configurado.",
+            )
 
         try:
             from google.cloud import texttospeech
+            from google.api_core import exceptions as google_exceptions
             from google.oauth2 import service_account
         except Exception as exc:
-            raise RuntimeError("Dependência google-cloud-texttospeech não instalada no ambiente.") from exc
+            raise TTSProviderError(
+                "unknown_provider_error",
+                "Dependência google-cloud-texttospeech não instalada no ambiente.",
+            ) from exc
 
         output_dir.mkdir(parents=True, exist_ok=True)
         target_name = filename or f"google_output{self.default_extension}"
@@ -92,6 +99,18 @@ class GoogleProvider(TTSProvider):
 
         try:
             credentials = service_account.Credentials.from_service_account_file(str(credential_file))
+        except PermissionError as exc:
+            raise TTSProviderError(
+                "credentials_file_not_visible_in_container",
+                "O processo do container não consegue ler o JSON de credencial do Google.",
+            ) from exc
+        except Exception as exc:
+            raise TTSProviderError(
+                "invalid_service_account_json",
+                "Arquivo de credencial do Google inválido ou malformado.",
+            ) from exc
+
+        try:
             client = texttospeech.TextToSpeechClient(credentials=credentials)
 
             synthesis_input = texttospeech.SynthesisInput(text=text)
@@ -115,12 +134,42 @@ class GoogleProvider(TTSProvider):
 
             with open(file_path, "wb") as audio_file:
                 audio_file.write(response.audio_content)
-        except RuntimeError:
+        except TTSProviderError:
             raise
+        except google_exceptions.PermissionDenied as exc:
+            file_path.unlink(missing_ok=True)
+            message = str(exc).lower()
+            if "billing" in message:
+                raise TTSProviderError(
+                    "billing_not_enabled",
+                    "Google TTS recusou a requisição. Verifique billing e permissões da service account.",
+                ) from exc
+            if "not been used" in message or "disabled" in message:
+                raise TTSProviderError(
+                    "api_not_enabled",
+                    "Google TTS recusou a requisição. A API Cloud Text-to-Speech parece desabilitada no projeto.",
+                ) from exc
+            raise TTSProviderError(
+                "permission_denied",
+                "Google TTS recusou a requisição. Verifique permissões da service account.",
+            ) from exc
+        except google_exceptions.InvalidArgument as exc:
+            file_path.unlink(missing_ok=True)
+            raise TTSProviderError(
+                "invalid_voice",
+                "Google TTS rejeitou a voz ou o idioma informados.",
+            ) from exc
+        except (google_exceptions.ServiceUnavailable, google_exceptions.DeadlineExceeded) as exc:
+            file_path.unlink(missing_ok=True)
+            raise TTSProviderError(
+                "network_error",
+                "Google TTS indisponível no momento. Tente novamente.",
+            ) from exc
         except Exception as exc:
             file_path.unlink(missing_ok=True)
-            raise RuntimeError(
-                "Falha ao gerar áudio com Google TTS. Verifique credencial, voz, idioma e conectividade."
+            raise TTSProviderError(
+                "unknown_provider_error",
+                "Falha ao gerar áudio com Google TTS. Verifique credencial, voz, idioma e conectividade.",
             ) from exc
 
         return TTSResult(filename=filename, file_path=file_path)

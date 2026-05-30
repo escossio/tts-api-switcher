@@ -20,6 +20,7 @@ from app.providers.google_provider import GoogleProvider
 from app.providers.mock_provider import MockProvider
 from app.providers.polly_provider import PollyProvider
 from app.providers.openai_provider import OpenAIProvider
+from app.providers.base import TTSProviderError
 
 
 app = FastAPI(title="tts-api-switcher")
@@ -130,6 +131,39 @@ def provider_list_item(provider_id: str) -> dict[str, object]:
     }
 
 
+def error_payload(provider_id: str, error_code: str, error_message: str) -> dict[str, object]:
+    return {
+        "status": "error",
+        "provider": provider_id,
+        "error_code": error_code,
+        "error": error_message,
+        "detail": error_message,
+    }
+
+
+def add_error_history(
+    *,
+    provider: str,
+    text: str,
+    language: str,
+    voice: str,
+    speed: float,
+    error_message: str,
+) -> None:
+    add_history_item(
+        provider=provider,
+        status="error",
+        text=text,
+        language=language,
+        voice=voice,
+        speed=speed,
+        filename=None,
+        audio_url=None,
+        audio_format=None,
+        error_message=error_message,
+    )
+
+
 def provider_voice_response(provider_id: str) -> JSONResponse:
     provider = PROVIDERS.get(provider_id)
     if provider is None:
@@ -152,6 +186,20 @@ def provider_voice_response(provider_id: str) -> JSONResponse:
 
     try:
         voices = provider.list_voices()
+    except TTSProviderError as exc:
+        message = exc.message
+        voices = []
+        return JSONResponse(
+            {
+                "provider": provider.id,
+                "enabled": enabled,
+                "voices": voices,
+                "error_code": exc.code,
+                "error": message,
+                "message": message,
+            },
+            status_code=400,
+        )
     except RuntimeError as exc:
         message = str(exc)
         voices = []
@@ -169,6 +217,8 @@ def provider_voice_response(provider_id: str) -> JSONResponse:
     }
     if message:
         content["message"] = message
+        content["error_code"] = "unknown_provider_error"
+        content["error"] = message
     return JSONResponse(content)
 
 
@@ -244,40 +294,33 @@ def api_delete_all_history() -> JSONResponse:
 def generate_audio(payload: GenerateAudioRequest) -> JSONResponse:
     provider = PROVIDERS.get(payload.provider)
     if provider is None:
-        add_history_item(
+        error_message = "Provider inválido."
+        add_error_history(
             provider=payload.provider,
-            status="error",
             text=payload.text,
             language=payload.language,
             voice=payload.voice,
             speed=payload.speed,
-            filename=None,
-            audio_url=None,
-            audio_format=None,
-            error_message="Provider inválido.",
+            error_message=error_message,
         )
         return JSONResponse(
             status_code=400,
-            content={"status": "error", "provider": payload.provider, "detail": "Provider inválido."},
+            content=error_payload(payload.provider, "unknown_provider_error", error_message),
         )
 
     if not provider.is_enabled():
         detail = provider.disabled_reason() or "Provider desativado ou não configurado."
-        add_history_item(
+        add_error_history(
             provider=payload.provider,
-            status="error",
             text=payload.text,
             language=payload.language,
             voice=payload.voice,
             speed=payload.speed,
-            filename=None,
-            audio_url=None,
-            audio_format=None,
             error_message=detail,
         )
         return JSONResponse(
             status_code=400,
-            content={"status": "error", "provider": payload.provider, "detail": detail},
+            content=error_payload(payload.provider, "provider_disabled", detail),
         )
 
     try:
@@ -314,38 +357,45 @@ def generate_audio(payload: GenerateAudioRequest) -> JSONResponse:
             }
         )
     except RuntimeError as exc:
-        add_history_item(
+        error_message = str(exc)
+        add_error_history(
             provider=payload.provider,
-            status="error",
             text=payload.text,
             language=payload.language,
             voice=payload.voice,
             speed=payload.speed,
-            filename=None,
-            audio_url=None,
-            audio_format=None,
-            error_message=str(exc),
+            error_message=error_message,
         )
         return JSONResponse(
             status_code=400,
-            content={"status": "error", "provider": payload.provider, "detail": str(exc)},
+            content=error_payload(payload.provider, "unknown_provider_error", error_message),
         )
-    except Exception:
-        add_history_item(
+    except TTSProviderError as exc:
+        add_error_history(
             provider=payload.provider,
-            status="error",
             text=payload.text,
             language=payload.language,
             voice=payload.voice,
             speed=payload.speed,
-            filename=None,
-            audio_url=None,
-            audio_format=None,
-            error_message="Falha ao gerar áudio.",
+            error_message=exc.message,
+        )
+        return JSONResponse(
+            status_code=400,
+            content=error_payload(payload.provider, exc.code, exc.message),
+        )
+    except Exception:
+        error_message = "Falha ao gerar áudio."
+        add_error_history(
+            provider=payload.provider,
+            text=payload.text,
+            language=payload.language,
+            voice=payload.voice,
+            speed=payload.speed,
+            error_message=error_message,
         )
         return JSONResponse(
             status_code=500,
-            content={"status": "error", "provider": payload.provider, "detail": "Falha ao gerar áudio."},
+            content=error_payload(payload.provider, "unknown_provider_error", error_message),
         )
 
 

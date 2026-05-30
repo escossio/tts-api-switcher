@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from urllib import error, request
 
-from .base import TTSProvider, TTSResult, normalize_voice
+from .base import TTSProvider, TTSProviderError, TTSResult, normalize_voice
 
 
 class ElevenLabsProvider(TTSProvider):
@@ -70,11 +70,12 @@ class ElevenLabsProvider(TTSProvider):
             with request.urlopen(req, timeout=15) as response:
                 payload = json.loads(response.read().decode("utf-8"))
         except error.HTTPError as exc:
-            raise RuntimeError(f"Falha ao listar vozes da ElevenLabs: HTTP {exc.code}.") from exc
+            code, message = self._classify_http_error(exc)
+            raise TTSProviderError(code, message) from exc
         except error.URLError as exc:
-            raise RuntimeError("Falha ao listar vozes da ElevenLabs: erro de rede.") from exc
+            raise TTSProviderError("network_error", "Falha ao listar vozes da ElevenLabs: erro de rede.") from exc
         except Exception as exc:
-            raise RuntimeError("Falha ao listar vozes da ElevenLabs.") from exc
+            raise TTSProviderError("unknown_provider_error", "Falha ao listar vozes da ElevenLabs.") from exc
 
         if isinstance(payload, dict):
             voices = payload.get("voices", [])
@@ -92,11 +93,14 @@ class ElevenLabsProvider(TTSProvider):
         filename: str | None = None,
     ) -> TTSResult:
         if not self.api_key:
-            raise RuntimeError("ELEVENLABS_API_KEY não configurada no .env.")
+            raise TTSProviderError("missing_api_key", "ELEVENLABS_API_KEY não configurada no .env.")
 
         effective_voice = voice or self.voice_id
         if not effective_voice:
-            raise RuntimeError("ElevenLabs requer ELEVENLABS_VOICE_ID ou um voice_id no request.")
+            raise TTSProviderError(
+                "missing_voice_id",
+                "ElevenLabs requer ELEVENLABS_VOICE_ID ou um voice_id no request.",
+            )
 
         try:
             from elevenlabs import VoiceSettings
@@ -126,8 +130,53 @@ class ElevenLabsProvider(TTSProvider):
                         audio_file.write(chunk)
         except Exception as exc:
             file_path.unlink(missing_ok=True)
-            raise RuntimeError(
-                "Falha ao gerar áudio com ElevenLabs. Verifique a chave, voice_id, modelo e conectividade."
+            if hasattr(exc, "status_code") or hasattr(exc, "code"):
+                code, message = self._classify_http_error(exc)
+                raise TTSProviderError(code, message) from exc
+            if "connection" in str(exc).lower() or "network" in str(exc).lower():
+                raise TTSProviderError(
+                    "network_error",
+                    "Falha ao gerar áudio com ElevenLabs: erro de rede.",
+                ) from exc
+            raise TTSProviderError(
+                "unknown_provider_error",
+                "Falha ao gerar áudio com ElevenLabs. Verifique a chave, voice_id, modelo e conectividade.",
             ) from exc
 
         return TTSResult(filename=filename, file_path=file_path)
+
+    @staticmethod
+    def _classify_http_error(exc: Exception) -> tuple[str, str]:
+        status_code = int(getattr(exc, "status_code", None) or getattr(exc, "code", 0) or 0)
+        body = ""
+        try:
+            body = exc.read().decode("utf-8", errors="ignore")  # type: ignore[attr-defined]
+        except Exception:
+            body = ""
+        message = f"{str(exc)}\n{body}".lower()
+
+        if any(token in message for token in ("missing_permissions", "voices_read")):
+            return "forbidden_403", "ElevenLabs negou a requisição por permissão voices_read ausente."
+        if any(
+            token in message
+            for token in (
+                "invoice",
+                "billing",
+                "payment_required",
+                "payment issue",
+                "payment",
+                "subscription",
+                "blocked",
+                "suspended",
+            )
+        ):
+            return "unpaid_invoice_or_account_block", "ElevenLabs bloqueou a requisição por cobrança ou conta."
+        if status_code == 401:
+            return "unauthorized_401", "ElevenLabs API key inválida, revogada ou sem permissão."
+        if status_code == 403:
+            return "forbidden_403", "ElevenLabs negou a requisição por permissão insuficiente."
+        if status_code in (400, 404, 422):
+            return "invalid_voice_id", "ElevenLabs rejeitou o voice_id informado."
+        if status_code == 429:
+            return "network_error", "ElevenLabs indisponível no momento. Tente novamente."
+        return "unknown_provider_error", "Falha ao listar vozes da ElevenLabs."
